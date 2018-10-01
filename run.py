@@ -74,7 +74,13 @@ for epoch in range(epochs):
     mu = weights_t[best].mean(0)
     sigma = torch.sqrt(weights_t.var(0))
     print('SCORE: mean %f, variance %f, best %f, CME: mean %f, sigma %f' % (score_mean, score_var, best_score, mu.view(6*16).mean(0), sigma.view(6*16).mean()))
-    with open('best_model', 'wb') as f:
+    filename = 'best_model%d'%epoch
+    with open(filename, 'wb') as f:
         torch.save(policy_nets[best[0].item()], f)
+    filename = 'musigma_%d' % epoch
+    with open(filename, 'wb') as f:
+        import pickle
+        pickle.dump((mu.numpy(), sigma.numpy()), f)
+
 
 
