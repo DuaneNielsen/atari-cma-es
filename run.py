@@ -13,8 +13,8 @@ from collections import namedtuple
 
 device = config.device()
 #visuals = Storeable.load('D:\data\models\GM53H301W5YS38XH').to(device)
-shot_encoder = Run.load_model(r'c:\data\runs\549\shots_v1\epoch0060.run').to(device=config.device())
-player_encoder = Run.load_model(r'c:\data\runs\580\shots_v1\epoch0081.run').to(device=config.device())
+shot_encoder = Run.load_model(r'.\modelzoo\vision\epoch0060.run').to(device=config.device())
+player_encoder = Run.load_model(r'.\modelzoo\vision\epoch0081.run').to(device=config.device())
 visuals = MultiChannelAE()
 visuals.add_ae(shot_encoder, [0, 2, 3])
 visuals.add_ae(player_encoder, [1, 2, 3])
