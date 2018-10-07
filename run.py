@@ -166,8 +166,6 @@ for epoch in range(epochs):
                 obs = transforms(obs)
                 obs = obs.unsqueeze(0)
                 latent = visuals(obs)
-                #todo implement decoding
-                #visuals.decoder(latent)
                 latent = latent.cpu().double().squeeze(3).squeeze(2)
                 action = net(latent)
                 #action = net(torch.tensor(raw_observation).float().unsqueeze(0))
