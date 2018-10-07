@@ -1,5 +1,5 @@
-from mentalitystorm import Storeable, BaseVAE
-from mentalitystorm.basemodels import BaseAE
+from mentalitystorm.storage import Storeable
+from mentalitystorm.basemodels import BaseAE, BaseVAE
 from mentalitystorm.util import conv_output_shape
 import torch
 import torch.nn as nn

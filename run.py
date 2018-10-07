@@ -2,24 +2,30 @@ import gym
 import torch
 import torch.nn as nn
 from torch.distributions.normal import Normal
-from mentalitystorm import config, Storeable, Run, ImageViewer
+from mentalitystorm.config import config
+from mentalitystorm.runners import Run
+from mentalitystorm.observe import ImageViewer
 from mentalitystorm.basemodels import MultiChannelAE
+from mentalitystorm.transforms import SelectChannels, SetRange, ColorMask
 import torchvision.transforms as TVT
 import mentalitystorm.transforms as tf
 import numpy as np
 from models import PolicyNet
 from pathlib import Path
-from collections import namedtuple
 
 device = config.device()
-#visuals = Storeable.load('D:\data\models\GM53H301W5YS38XH').to(device)
 shot_encoder = Run.load_model(r'.\modelzoo\vision\epoch0060.run').to(device=config.device())
 player_encoder = Run.load_model(r'.\modelzoo\vision\epoch0081.run').to(device=config.device())
 visuals = MultiChannelAE()
 visuals.add_ae(shot_encoder, [0, 2, 3])
 visuals.add_ae(player_encoder, [1, 2, 3])
 
-transforms = TVT.Compose([tf.CoordConv()])
+shots = tf.ColorMask(lower=[128, 128, 128], upper=[255, 255, 255], append=True)
+player = tf.ColorMask(lower=[30, 100, 40], upper=[70, 180, 70], append=True)
+cut = tf.SetRange(0, 60, 0, 210, [4])
+select = tf.SelectChannels([3, 4])
+
+segmentor = TVT.Compose([shots, player, cut, select, TVT.ToTensor(), tf.CoordConv()])
 
 view_latent = ImageViewer('latent', (320, 480))
 
@@ -149,7 +155,6 @@ z_size = 32
 
 for net in range(sample_size):
     policy_nets.append(PolicyNet((11, 8), 6).double())
-    #policy_nets.append(nn.Sequential(nn.Linear(4, 2), nn.Softmax(dim=1)))
     episode_steps.append(0)
 
 
@@ -161,14 +166,11 @@ for epoch in range(epochs):
             raw_observation = env.reset()
             for t in range(5000):
                 screen = env.render(mode='rgb_array')
-                obs = torch.tensor(screen).cuda().float()
-                obs = obs.permute(2, 0, 1)
-                obs = transforms(obs)
-                obs = obs.unsqueeze(0)
+                obs = segmentor(screen)
+                obs = obs.unsqueeze(0).to(device)
                 latent = visuals(obs)
                 latent = latent.cpu().double().squeeze(3).squeeze(2)
                 action = net(latent)
-                #action = net(torch.tensor(raw_observation).float().unsqueeze(0))
                 _, the_action = action.max(1)
                 env.render()
                 raw_observation, reward, done, info = env.step(the_action.item())
