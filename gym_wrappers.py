@@ -1,7 +1,7 @@
 from gym import Wrapper
 
 class StepReward(Wrapper):
-    def __init__(self, env, step_reward=0):
+    def __init__(self, env, step_reward=1):
         super(StepReward, self).__init__(env)
         self.step_reward = step_reward
 
@@ -17,7 +17,7 @@ class StepReward(Wrapper):
 
 
 class StepOnlyReward(Wrapper):
-    def __init__(self, env, step_reward=0):
+    def __init__(self, env, step_reward=1):
         super(StepOnlyReward, self).__init__(env)
         self.step_reward = step_reward
 

@@ -141,7 +141,10 @@ class CMA:
                        self.distrib.mean.mean(), self.distrib.stddev.mean()))
 
 
+import gym_wrappers
+
 env = gym.make('SpaceInvaders-v4')
+env = gym_wrappers.StepOnlyReward(env, step_reward=1)
 policy_nets = []
 cma = CMA()
 
