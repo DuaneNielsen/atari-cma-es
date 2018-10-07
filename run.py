@@ -27,7 +27,14 @@ view_latent = ImageViewer('latent', (320, 480))
 def view_image(model, input, output):
     view_latent.update(output[0].data)
 
-#visuals.decoder.register_forward_hook(view_image)
+decode_viewer = ImageViewer('decoded', (320, 480))
+
+def view_decode(model, input, output):
+    image = model.decode(output)
+    decode_viewer.update(image)
+
+visuals.decode_ch_l = [[0],[1]]
+visuals.register_forward_hook(view_decode)
 
 def top_25_percent(scores, higher_is_better=True):
     """
