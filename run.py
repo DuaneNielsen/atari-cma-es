@@ -6,12 +6,13 @@ from mentalitystorm.config import config
 from mentalitystorm.runners import Run
 from mentalitystorm.observe import ImageViewer
 from mentalitystorm.basemodels import MultiChannelAE
-from mentalitystorm.transforms import SelectChannels, SetRange, ColorMask
 import torchvision.transforms as TVT
 import mentalitystorm.transforms as tf
 import numpy as np
 from models import PolicyNet
 from pathlib import Path
+from tqdm import tqdm
+
 
 device = config.device()
 shot_encoder = Run.load_model(r'.\modelzoo\vision\epoch0060.run').to(device=config.device())
@@ -162,20 +163,22 @@ for net in range(sample_size):
 
 
 for epoch in range(epochs):
-    for net in policy_nets:
+    for net in tqdm(policy_nets):
         score = 0
         stats = {'episode_steps': 0}
         for i_episode in range(rollouts):
             raw_observation = env.reset()
             for t in range(5000):
-                screen = env.render(mode='rgb_array')
-                obs = segmentor(screen)
+                #screen = env.render(mode='rgb_array')
+
+                obs = segmentor(raw_observation)
                 obs = obs.unsqueeze(0).to(device)
                 latent = visuals(obs)
+
                 latent = latent.cpu().double().squeeze(3).squeeze(2)
                 action = net(latent)
                 _, the_action = action.max(1)
-                env.render()
+
                 raw_observation, reward, done, info = env.step(the_action.item())
                 score += reward
                 stats['episode_steps'] += 1
