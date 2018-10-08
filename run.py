@@ -41,7 +41,7 @@ def view_decode(model, input, output):
     decode_viewer.update(image)
 
 visuals.decode_ch_l = [[0],[1]]
-visuals.register_forward_hook(view_decode)
+#visuals.register_forward_hook(view_decode)
 
 def top_25_percent(scores, higher_is_better=True):
     """
