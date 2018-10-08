@@ -1,166 +1,90 @@
 import gym
 import torch
-import torch.nn as nn
-from torch.distributions.normal import Normal
+
+from cma import CMA
 from mentalitystorm.config import config
 from mentalitystorm.runners import Run
 from mentalitystorm.observe import ImageViewer
 from mentalitystorm.basemodels import MultiChannelAE
 import torchvision.transforms as TVT
 import mentalitystorm.transforms as tf
-import numpy as np
 from models import PolicyNet
 from pathlib import Path
 from tqdm import tqdm
 
 
 device = config.device()
-shot_encoder = Run.load_model(r'.\modelzoo\vision\epoch0060.run').to(device=config.device())
-player_encoder = Run.load_model(r'.\modelzoo\vision\epoch0081.run').to(device=config.device())
+shot_encoder = Run.load_model(r'.\modelzoo\vision\shots.run').eval().to(device=config.device())
+player_encoder = Run.load_model(r'.\modelzoo\vision\player.run').eval().to(device=config.device())
+invaders_encoder = Run.load_model(r'.\modelzoo\vision\invaders.run').eval().to(device=config.device())
+barrier_encoder = Run.load_model(r'.\modelzoo\vision\barrier.run').eval().to(device=config.device())
 visuals = MultiChannelAE()
-visuals.add_ae(shot_encoder, [0, 2, 3])
-visuals.add_ae(player_encoder, [1, 2, 3])
+visuals.add_ae(shot_encoder, [0, 4, 5], [0])
+visuals.add_ae(player_encoder, [1, 4, 5], [1])
+visuals.add_ae(invaders_encoder, [2, 4, 5], [2])
+visuals.add_ae(barrier_encoder, [3, 4, 5], [3])
 
 shots = tf.ColorMask(lower=[128, 128, 128], upper=[255, 255, 255], append=True)
 player = tf.ColorMask(lower=[30, 100, 40], upper=[70, 180, 70], append=True)
-cut = tf.SetRange(0, 60, 0, 210, [4])
-select = tf.SelectChannels([3, 4])
+cut_player = tf.SetRange(0, 60, 0, 210, [4])
+invader = tf.ColorMask(lower=[120, 125, 25], upper=[140, 140, 130], append=True)
+cut_invader = tf.SetRange(0, 30, 0, 210, [5])
+barrier = tf.ColorMask(lower=[120, 74, 30], upper=[190, 100, 70], append=True)
+select = tf.SelectChannels([3, 4, 5, 6])
 
-segmentor = TVT.Compose([shots, player, cut, select, TVT.ToTensor(), tf.CoordConv()])
+observe = tf.ViewChannels('transform', (320, 480), channels=[0, 1, 2])
 
-view_latent = ImageViewer('latent', (320, 480))
+segmentor = TVT.Compose([shots, player, cut_player, invader, cut_invader,
+                         barrier, select, TVT.ToTensor(), tf.CoordConv()])
+
+view_latent1 = ImageViewer('latent1', (320, 480), channels=[0, 1, 2])
+view_latent2 = ImageViewer('latent2', (320, 480), channels=[3])
+view_input1 = ImageViewer('input1', (320, 480), channels=[0, 1, 2])
+view_input2 = ImageViewer('input2', (320, 480), channels=[3, 4, 5])
 
 
 def view_image(model, input, output):
-    view_latent.update(output[0].data)
+    view_input1.update(input[0].data)
+    view_input2.update(input[0].data)
+    view_latent1.update(output[0].data)
+    view_latent2.update(output[0].data)
 
-decode_viewer = ImageViewer('decoded', (320, 480))
+
+decode_viewer1 = ImageViewer('decoded1', (320, 480), channels=[0, 1, 2])
+decode_viewer2 = ImageViewer('decoded2', (320, 480), channels=[3])
+
 
 def view_decode(model, input, output):
     image = model.decode(output)
-    decode_viewer.update(image)
-
-visuals.decode_ch_l = [[0],[1]]
-#visuals.register_forward_hook(view_decode)
-
-def top_25_percent(scores, higher_is_better=True):
-    """
-    Calculates the top 25 best scores
-    :param scores: a list of the scores
-    :return: a longtensor with indices of the top 25 scores
-    """
-    indexed = [(i, s) for i, s in enumerate(scores)]
-    indexed = sorted(indexed, key=lambda score: score[1], reverse=higher_is_better)
-    num_winners = len(indexed) // 4
-    num_winners = num_winners if num_winners > 0 else 1
-    best = [indexed[i][0] for i in range(num_winners)]
-    rest = [indexed[i][0] for i in range(num_winners+1, len(indexed))]
-    return torch.tensor(best), torch.tensor(rest)
-
-
-def flatten(net):
-    w = []
-
-    def _capture(m):
-        if type(m) in [nn.Linear, nn.Conv2d]:
-            w.append(m.weight.data)
-            w.append(m.bias.data)
-
-    net.apply(_capture)
-
-    t = list(map(lambda x: x.view(-1), w))
-    return torch.cat(t)
-
-
-def restore(net, t):
-    start = 0
-
-    def _restore(m):
-        if type(m) in [nn.Linear, nn.Conv2d]:
-            nonlocal start
-
-            length = m.weight.data.numel()
-            chunk = t[range(start, start + length)]
-            m.weight.data = chunk.view(m.weight.data.shape)
-            start += length
-
-            length = m.bias.data.numel()
-            chunk = t[range(start, start + length)]
-            m.bias.data = chunk.view(m.bias.data.shape)
-            start += length
-
-    net.apply(_restore)
-
-
-class CMA:
-    def __init__(self, higher_is_better=True):
-
-        self.weights = []
-        self.scores = []
-        self.higher_is_better = higher_is_better
-        self.stats = []
-        self.distrib = None
-
-    def add(self, net, score, stats=None):
-        self.weights.append(flatten(net))
-        self.scores.append(score)
-        if stats is not None:
-            self.stats.append(stats)
-
-    def rank_and_compute(self):
-        w_t = torch.stack(self.weights)
-        best, rest = top_25_percent(self.scores, self.higher_is_better)
-        mu = w_t[best].mean(0)
-        stdv = torch.sqrt(w_t.var(0))
-        self.distrib = Normal(mu, stdv)
-
-        self.print_scores()
-
-        self.weights = []
-        self.scores = []
-        self.stats = []
-        return best, rest
-
-    def set_sample_weights(self, net):
-        sample = self.distrib.sample((1,)).squeeze(0)
-        restore(net, sample)
-
-    def print_scores(self):
-        if self.scores is not None:
-            best, rest = top_25_percent(self.scores, self.higher_is_better)
-            scores_np = np.array(self.scores)
-            score_mean = scores_np.mean()
-            score_var = scores_np.var()
-            best_score = self.scores[best[0].item()]
-            episode_steps = [d['episode_steps'] for d in self.stats]
-            episode_steps_np = np.array(episode_steps)
-            print('SCORE: mean %f, variance %f, best %f, ' \
-                   'epi mean length %f, epi max len %f, ' \
-                   'CME: mean %f, sigma %f' % (
-                       score_mean, score_var, best_score,
-                       episode_steps_np.mean(), episode_steps_np.max(),
-                       self.distrib.mean.mean(), self.distrib.stddev.mean()))
-
+    decode_viewer1.update(image)
+    decode_viewer2.update(image)
 
 import gym_wrappers
 
 env = gym.make('SpaceInvaders-v4')
-env = gym_wrappers.StepOnlyReward(env, step_reward=1)
+env = gym_wrappers.StepReward(env, step_reward=1)
 policy_nets = []
 cma = CMA()
 
 episode_steps = []
-sample_size = 300
+sample_size = 400
 epochs = 200
 rollouts = 1
 
 z_size = 32
 
+viewers = False
+
+if viewers:
+    visuals.register_forward_hook(view_decode)
+    visuals.register_forward_hook(view_image)
+
 
 for net in range(sample_size):
-    policy_nets.append(PolicyNet((11, 8), 6).double())
+    policy_nets.append(PolicyNet((11, 8), 4, 6).double())
     episode_steps.append(0)
 
+run_id = config.increment_run_id()
 
 for epoch in range(epochs):
     for net in tqdm(policy_nets):
@@ -189,7 +113,7 @@ for epoch in range(epochs):
 
     best, rest = cma.rank_and_compute()
 
-    save_path = Path('modelzoo/run2')
+    save_path = config.basepath() / 'SpaceInvaders-v4' / 'policy_runs' / run_id
     save_path.mkdir(parents=True, exist_ok=True)
 
     filename = save_path / ('best_model%d' % epoch)
@@ -203,8 +127,3 @@ for epoch in range(epochs):
 
     for net in policy_nets:
         cma.set_sample_weights(net)
-
-
-
-
-

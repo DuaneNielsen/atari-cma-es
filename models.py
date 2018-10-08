@@ -75,11 +75,11 @@ class ConvVAE4Fixed(Storeable, BaseVAE):
 
 
 class PolicyNet(nn.Module):
-    def __init__(self, input_size, actions):
+    def __init__(self, input_size, input_channels, actions):
         nn.Module.__init__(self)
         self.num_actions = actions
 
-        self.conv = nn.Conv2d(2, 1, kernel_size=2, stride=2)
+        self.conv = nn.Conv2d(input_channels, 1, kernel_size=2, stride=2)
         output_shape = conv_output_shape(input_size, kernel_size=2, stride=2)
         self.output_len = output_shape[0] * output_shape[1]
 
