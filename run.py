@@ -1,6 +1,6 @@
 import gym
 import torch
-
+import pickle
 from cma import CMA
 from mentalitystorm.config import config
 from mentalitystorm.runners import Run
@@ -11,6 +11,7 @@ import mentalitystorm.transforms as tf
 from models import PolicyNet
 from pathlib import Path
 from tqdm import tqdm
+import gym_wrappers
 
 
 device = config.device()
@@ -59,12 +60,14 @@ def view_decode(model, input, output):
     decode_viewer1.update(image)
     decode_viewer2.update(image)
 
-import gym_wrappers
-
 env = gym.make('SpaceInvaders-v4')
 env = gym_wrappers.StepReward(env, step_reward=1)
+
 policy_nets = []
-cma = CMA()
+cma_file = r'C:\data\SpaceInvaders-v4\policy_runs\602\cma_7'
+
+with Path(cma_file).open('rb') as f:
+    cma = pickle.load(f)
 
 episode_steps = []
 sample_size = 400
@@ -122,7 +125,6 @@ for epoch in range(epochs):
 
     filename = save_path / ('cma_%d' % epoch)
     with filename.open('wb') as f:
-        import pickle
         pickle.dump(cma, f)
 
     for net in policy_nets:

@@ -92,6 +92,28 @@ class PolicyNet(nn.Module):
         return self.action(action)
 
 
+class ThreeKeyPolicyNet(nn.Module):
+    def __init__(self, input_size, input_channels, actions):
+        nn.Module.__init__(self)
+        self.num_actions = actions
+
+        self.conv = nn.Conv2d(input_channels, 2, kernel_size=2, stride=2)
+        output_shape = conv_output_shape(input_size, kernel_size=2, stride=2)
+        self.output_len = output_shape[0] * output_shape[1]
+
+        self.move = nn.Linear(self.output_len, actions - 1)
+        self.fire = nn.Linear(self.output_len, 1)
+        self.action = nn.Softmax(dim=1)
+
+    def forward(self, z):
+        vision = F.leaky_relu(self.conv(z))
+
+        move = self.fire(vision[:, 1].view(-1, self.output_len))
+        fire = self.fire(vision[:, 0].view(-1, self.output_len))
+
+        return self.action(torch.cat((move, fire), dim=1))
+
+
 class Compressor(Storeable, BaseAE):
     """
     input_shape is a tuple of (height, width)

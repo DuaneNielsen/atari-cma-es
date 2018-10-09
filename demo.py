@@ -5,6 +5,7 @@ from mentalitystorm.basemodels import MultiChannelAE
 from mentalitystorm.runners import Run
 from mentalitystorm.config import config
 from mentalitystorm.policies import VCPolicyMultiAE, RolloutGen
+from mentalitystorm.data_containers import ActionEmbedding
 import torch
 import gym
 
@@ -33,11 +34,10 @@ visuals.add_ae(invaders_encoder, [2, 4, 5], [2])
 visuals.add_ae(barrier_encoder, [3, 4, 5], [3])
 
 
-controller = torch.load(r'C:\data\SpaceInvaders-v4\policy_runs\596\best_model1')
-
-policy = VCPolicyMultiAE(visuals, controller, segmentor, device)
+controller = torch.load(r'C:\data\SpaceInvaders-v4\policy_runs\603\best_model8')
 
 env = gym.make('SpaceInvaders-v4')
+policy = VCPolicyMultiAE(visuals, controller, segmentor, ActionEmbedding(env), device)
 
 for screen, observation, reward, done, info, action in RolloutGen(env, policy, render_to_window=True, populate_screen=True):
     pass
