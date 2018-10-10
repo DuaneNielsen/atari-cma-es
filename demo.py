@@ -37,8 +37,8 @@ visuals.add_ae(barrier_encoder, [3, 4, 5], [3])
 visuals.register_forward_hook(view_decode)
 visuals.register_forward_hook(view_image)
 
-
-controller = torch.load(r'C:\data\SpaceInvaders-v4\policy_runs\629\best_model0')
+controller_file = config.basepath() / 'SpaceInvaders-v4' / 'policy_runs' / '7' / 'best_model1'
+controller = torch.load(controller_file)
 
 env = gym.make('SpaceInvaders-v4')
 policy = VCPolicyMultiAE(visuals, controller, segmentor, ActionEmbedding(env), device)
