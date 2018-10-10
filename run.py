@@ -41,12 +41,16 @@ env = gym.make('SpaceInvaders-v4')
 env = gym_wrappers.StepReward(env, step_reward=1)
 
 policy_nets = []
-cma_file = r'C:\data\SpaceInvaders-v4\policy_runs\603\cma_8'
 
-with Path(cma_file).open('rb') as f:
-    cma = pickle.load(f)
 
-cma = CMA()
+cma_file = config.basepath() / 'SpaceInvaders-v4' / 'policy_runs' / '603' / 'cma_8'
+
+if cma_file.exists():
+    with Path(cma_file).open('rb') as f:
+        cma = pickle.load(f)
+
+else:
+    cma = CMA()
 
 episode_steps = []
 sample_size = 1
