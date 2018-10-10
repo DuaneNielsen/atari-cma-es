@@ -96,10 +96,9 @@ class CMA:
             episode_steps = [d['episode_steps'] for d in self.stats]
             episode_steps_np = np.array(episode_steps)
             print('SCORE: mean %f, variance %f, best %f, ' \
-                   'epi mean length %f, epi max len %f, ' \
-                   'CME: mean %f, sigma %f' % (
-                       score_mean, score_var, best_score,
-                       episode_steps_np.mean(), episode_steps_np.max(),
-                       self.distrib.mean.mean(), self.distrib.stddev.mean()))
-
-
+                  'epi mean length %f, epi max len %f, ' \
+                  'CME: mean %f, sigma %f, parameters %f' % (
+                      score_mean, score_var, best_score,
+                      episode_steps_np.mean(), episode_steps_np.max(),
+                      self.distrib.mean.mean(), self.distrib.stddev.mean(),
+                      self.distrib.mean.numel()))
