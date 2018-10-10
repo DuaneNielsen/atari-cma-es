@@ -109,7 +109,7 @@ class ThreeKeyPolicyNet(nn.Module):
         #UP(1)
         self.up = nn.Parameter(torch.Tensor([0]).unsqueeze(0))
 
-        self.permute = torch.Tensor([0, 3, 4, 1, 2]).long()
+        self.permute = torch.Tensor([0, 3, 1, 2]).long()
 
         self.action = nn.Softmax(dim=1)
 
@@ -119,11 +119,10 @@ class ThreeKeyPolicyNet(nn.Module):
         move = self.move(vision[:, 1].view(-1, self.output_len))
         fire = self.fire(vision[:, 0].view(-1, self.output_len))
 
-        action = torch.cat((move, fire, self.up), dim=1)
-
-        action = action[:, self.permute]
+        action = torch.cat((move, fire), dim=1)
         action = self.action(action)
-
+        #action = torch.cat((action, self.up), dim=1)
+        action = action[:, self.permute]
         return action
 
 

@@ -8,6 +8,7 @@ from mentalitystorm.policies import VCPolicyMultiAE, RolloutGen
 from mentalitystorm.data_containers import ActionEmbedding
 import torch
 import gym
+from viewer import *
 
 shots = tf.ColorMask(lower=[128, 128, 128], upper=[255, 255, 255], append=True)
 player = tf.ColorMask(lower=[30, 100, 40], upper=[70, 180, 70], append=True)
@@ -33,11 +34,15 @@ visuals.add_ae(player_encoder, [1, 4, 5], [1])
 visuals.add_ae(invaders_encoder, [2, 4, 5], [2])
 visuals.add_ae(barrier_encoder, [3, 4, 5], [3])
 
+visuals.register_forward_hook(view_decode)
+visuals.register_forward_hook(view_image)
 
-controller = torch.load(r'C:\data\SpaceInvaders-v4\policy_runs\603\best_model8')
+
+controller = torch.load(r'C:\data\SpaceInvaders-v4\policy_runs\629\best_model0')
 
 env = gym.make('SpaceInvaders-v4')
 policy = VCPolicyMultiAE(visuals, controller, segmentor, ActionEmbedding(env), device)
+
 
 for screen, observation, reward, done, info, action in RolloutGen(env, policy, render_to_window=True, populate_screen=True):
     pass

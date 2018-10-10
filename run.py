@@ -1,18 +1,17 @@
 import gym
 import torch
 import pickle
-from cma import CMA
 from mentalitystorm.config import config
 from mentalitystorm.runners import Run
-from mentalitystorm.observe import ImageViewer
 from mentalitystorm.basemodels import MultiChannelAE
 import torchvision.transforms as TVT
 import mentalitystorm.transforms as tf
-from models import PolicyNet
+from models import ThreeKeyPolicyNet
 from pathlib import Path
 from tqdm import tqdm
 import gym_wrappers
-
+from viewer import view_image, view_decode
+from cma import CMA
 
 device = config.device()
 shot_encoder = Run.load_model(r'.\modelzoo\vision\shots.run').eval().to(device=config.device())
@@ -38,28 +37,6 @@ observe = tf.ViewChannels('transform', (320, 480), channels=[0, 1, 2])
 segmentor = TVT.Compose([shots, player, cut_player, invader, cut_invader,
                          barrier, select, TVT.ToTensor(), tf.CoordConv()])
 
-view_latent1 = ImageViewer('latent1', (320, 480), channels=[0, 1, 2])
-view_latent2 = ImageViewer('latent2', (320, 480), channels=[3])
-view_input1 = ImageViewer('input1', (320, 480), channels=[0, 1, 2])
-view_input2 = ImageViewer('input2', (320, 480), channels=[3, 4, 5])
-
-
-def view_image(model, input, output):
-    view_input1.update(input[0].data)
-    view_input2.update(input[0].data)
-    view_latent1.update(output[0].data)
-    view_latent2.update(output[0].data)
-
-
-decode_viewer1 = ImageViewer('decoded1', (320, 480), channels=[0, 1, 2])
-decode_viewer2 = ImageViewer('decoded2', (320, 480), channels=[3])
-
-
-def view_decode(model, input, output):
-    image = model.decode(output)
-    decode_viewer1.update(image)
-    decode_viewer2.update(image)
-
 env = gym.make('SpaceInvaders-v4')
 env = gym_wrappers.StepReward(env, step_reward=1)
 
@@ -69,14 +46,16 @@ cma_file = r'C:\data\SpaceInvaders-v4\policy_runs\603\cma_8'
 with Path(cma_file).open('rb') as f:
     cma = pickle.load(f)
 
+cma = CMA()
+
 episode_steps = []
-sample_size = 400
+sample_size = 1
 epochs = 200
 rollouts = 1
 
 z_size = 32
 
-viewers = False
+viewers = True
 
 if viewers:
     visuals.register_forward_hook(view_decode)
@@ -84,7 +63,7 @@ if viewers:
 
 
 for net in range(sample_size):
-    policy_nets.append(PolicyNet((11, 8), 4, 6).double())
+    policy_nets.append(ThreeKeyPolicyNet((11, 8), 4).double())
     episode_steps.append(0)
 
 run_id = config.increment_run_id()
@@ -105,6 +84,7 @@ for epoch in range(epochs):
                 latent = latent.cpu().double().squeeze(3).squeeze(2)
                 action = net(latent)
                 _, the_action = action.max(1)
+                print(the_action.item())
 
                 raw_observation, reward, done, info = env.step(the_action.item())
                 score += reward
