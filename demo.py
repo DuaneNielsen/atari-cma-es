@@ -37,11 +37,11 @@ visuals.add_ae(barrier_encoder, [3, 4, 5], [3])
 visuals.register_forward_hook(view_decode)
 visuals.register_forward_hook(view_image)
 
-controller_file = config.basepath() / 'SpaceInvaders-v4' / 'policy_runs' / '7' / 'best_model1'
+controller_file = config.basepath() / 'SpaceInvaders-v4' / 'policy_runs' / '12' / 'best_model0'
 controller = torch.load(controller_file)
 
 env = gym.make('SpaceInvaders-v4')
-policy = VCPolicyMultiAE(visuals, controller, segmentor, ActionEmbedding(env), device)
+policy = VCPolicyMultiAE(visuals, controller, segmentor, device)
 
 
 for screen, observation, reward, done, info, action in RolloutGen(env, policy, render_to_window=True, populate_screen=True):

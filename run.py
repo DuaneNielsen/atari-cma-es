@@ -53,13 +53,13 @@ else:
     cma = CMA()
 
 episode_steps = []
-sample_size = 1
+sample_size = 1000
 epochs = 200
 rollouts = 1
 
 z_size = 32
 
-viewers = True
+viewers = False
 
 if viewers:
     visuals.register_forward_hook(view_decode)
@@ -88,7 +88,6 @@ for epoch in range(epochs):
                 latent = latent.cpu().double().squeeze(3).squeeze(2)
                 action = net(latent)
                 _, the_action = action.max(1)
-                print(the_action.item())
 
                 raw_observation, reward, done, info = env.step(the_action.item())
                 score += reward
